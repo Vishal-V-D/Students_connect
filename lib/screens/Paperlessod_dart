@@ -1,0 +1,154 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+
+class PaperlessODPage extends StatefulWidget {
+  @override
+  _PaperlessODPageState createState() => _PaperlessODPageState();
+}
+
+class _PaperlessODPageState extends State<PaperlessODPage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final TextEditingController _purposeController = TextEditingController();
+  DateTime? _selectedDate;
+  String? _selectedTimeSlot;
+
+  void _submitODRequest() async {
+    String? userEmail = _auth.currentUser?.email;
+    if (userEmail == null || _selectedDate == null || _selectedTimeSlot == null || _purposeController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("All fields are required!")));
+      return;
+    }
+
+    await _firestore.collection("od_requests").add({
+      "email": userEmail,
+      "date": DateFormat("yyyy-MM-dd").format(_selectedDate!),
+      "time_slot": _selectedTimeSlot,
+      "purpose": _purposeController.text.trim(),
+      "status": "Pending",
+      "timestamp": FieldValue.serverTimestamp(),
+    });
+
+    _purposeController.clear();
+    setState(() {
+      _selectedDate = null;
+      _selectedTimeSlot = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("OD Request Submitted!")));
+  }
+
+  String formatDate(Timestamp timestamp) {
+    DateTime date = timestamp.toDate();
+    return DateFormat("dd MMM yyyy, hh:mm a").format(date);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Paperless OD Request")),
+      body: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Select Date", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ListTile(
+              leading: Icon(Icons.calendar_today, color: Colors.blue),
+              title: Text(_selectedDate == null ? "Choose Date" : DateFormat("dd MMM yyyy").format(_selectedDate!)),
+              onTap: () async {
+                DateTime? pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2030),
+                );
+                if (pickedDate != null) {
+                  setState(() {
+                    _selectedDate = pickedDate;
+                  });
+                }
+              },
+            ),
+            SizedBox(height: 10),
+            Text("Select Time Slot", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            DropdownButton<String>(
+              value: _selectedTimeSlot,
+              hint: Text("Choose Time Slot"),
+              isExpanded: true,
+              items: ["Morning", "Afternoon", "Full Day"].map((slot) {
+                return DropdownMenuItem<String>(
+                  value: slot,
+                  child: Text(slot),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedTimeSlot = value;
+                });
+              },
+            ),
+            SizedBox(height: 10),
+            Text("Purpose", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            TextField(
+              controller: _purposeController,
+              decoration: InputDecoration(hintText: "Enter purpose", border: OutlineInputBorder()),
+            ),
+            SizedBox(height: 20),
+            Center(
+              child: ElevatedButton(
+                onPressed: _submitODRequest,
+                child: Text("Submit OD Request"),
+              ),
+            ),
+            SizedBox(height: 20),
+            Text("Previous Requests", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _firestore.collection("od_requests").orderBy("timestamp", descending: true).snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+                  List<QueryDocumentSnapshot> docs = snapshot.data!.docs;
+                  if (docs.isEmpty) return Center(child: Text("No OD requests found."));
+                  return ListView.builder(
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      var data = docs[index].data() as Map<String, dynamic>;
+                      return Card(
+                        margin: EdgeInsets.all(8),
+                        child: ListTile(
+                          title: Text("Purpose: ${data["purpose"]}"),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Date: ${data["date"]}, ${data["time_slot"]}"),
+                              Text("Status: ${data["status"]}", style: TextStyle(fontWeight: FontWeight.bold, color: getStatusColor(data["status"]))),
+                              if (data["timestamp"] != null) Text("Requested on: ${formatDate(data["timestamp"])}", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case "approved":
+        return Colors.green;
+      case "rejected":
+        return Colors.red;
+      default:
+        return Colors.orange;
+    }
+  }
+}

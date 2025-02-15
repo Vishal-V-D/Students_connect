@@ -1,0 +1,2 @@
+D:/FOSS/Foss-Hack-Students-Connect/android/app/.cxx/Debug/1u2ar5e6/x86/CMakeFiles/edit_cache.dir
+D:/FOSS/Foss-Hack-Students-Connect/android/app/.cxx/Debug/1u2ar5e6/x86/CMakeFiles/rebuild_cache.dir
