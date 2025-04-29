@@ -8,7 +8,10 @@ class EventHistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Event History")),
+      appBar: AppBar(title: Text("Event History",style: TextStyle(fontWeight: FontWeight.bold)),
+            backgroundColor: Colors.grey,
+             centerTitle: true,
+            ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore.collection("events").orderBy("timestamp", descending: true).snapshots(),
         builder: (context, snapshot) {
@@ -121,12 +124,21 @@ class EventHistoryScreen extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => CreateEventScreen()));
-        },
-        child: Icon(Icons.add),
-      ),
+      floatingActionButton: FloatingActionButton.extended(
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => CreateEventScreen()),
+    );
+  },
+  icon: const Icon(Icons.add, color: Colors.white),
+  label: const Text(
+    "Create",
+    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+  ),
+  backgroundColor: const Color.fromARGB(255, 0, 0, 0), // You can change the color as needed
+),
+
     );
   }
 
@@ -163,7 +175,8 @@ class EventDetailsScreen extends StatelessWidget {
     String? imageUrl = eventData["imageUrl"]?.toString();
 
     return Scaffold(
-      appBar: AppBar(title: Text(eventName)),
+      appBar: AppBar(title: Text(eventName),
+          backgroundColor: Colors.grey,),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: Column(

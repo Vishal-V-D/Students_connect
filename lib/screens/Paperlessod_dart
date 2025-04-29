@@ -14,15 +14,35 @@ class _PaperlessODPageState extends State<PaperlessODPage> {
   final TextEditingController _purposeController = TextEditingController();
   DateTime? _selectedDate;
   String? _selectedTimeSlot;
+  String? _userName;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserName();
+  }
+
+  void _fetchUserName() async {
+    String? userEmail = _auth.currentUser?.email;
+    if (userEmail != null) {
+      DocumentSnapshot userDoc = await _firestore.collection("users").doc(userEmail).get();
+      if (userDoc.exists) {
+        setState(() {
+          _userName = userDoc["name"];
+        });
+      }
+    }
+  }
 
   void _submitODRequest() async {
     String? userEmail = _auth.currentUser?.email;
-    if (userEmail == null || _selectedDate == null || _selectedTimeSlot == null || _purposeController.text.trim().isEmpty) {
+    if (userEmail == null || _userName == null || _selectedDate == null || _selectedTimeSlot == null || _purposeController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("All fields are required!")));
       return;
     }
 
     await _firestore.collection("od_requests").add({
+      "name": _userName,
       "email": userEmail,
       "date": DateFormat("yyyy-MM-dd").format(_selectedDate!),
       "time_slot": _selectedTimeSlot,
@@ -48,96 +68,150 @@ class _PaperlessODPageState extends State<PaperlessODPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Paperless OD Request")),
-      body: Padding(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: Text("Paperless OD Request", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.grey,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Select Date", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ListTile(
-              leading: Icon(Icons.calendar_today, color: Colors.blue),
-              title: Text(_selectedDate == null ? "Choose Date" : DateFormat("dd MMM yyyy").format(_selectedDate!)),
-              onTap: () async {
-                DateTime? pickedDate = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime(2030),
-                );
-                if (pickedDate != null) {
-                  setState(() {
-                    _selectedDate = pickedDate;
-                  });
-                }
-              },
-            ),
-            SizedBox(height: 10),
-            Text("Select Time Slot", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            DropdownButton<String>(
-              value: _selectedTimeSlot,
-              hint: Text("Choose Time Slot"),
-              isExpanded: true,
-              items: ["Morning", "Afternoon", "Full Day"].map((slot) {
-                return DropdownMenuItem<String>(
-                  value: slot,
-                  child: Text(slot),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedTimeSlot = value;
-                });
-              },
-            ),
-            SizedBox(height: 10),
-            Text("Purpose", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            TextField(
-              controller: _purposeController,
-              decoration: InputDecoration(hintText: "Enter purpose", border: OutlineInputBorder()),
+            _buildCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle("Select Date"),
+                  ListTile(
+                    leading: Icon(Icons.calendar_today, color: Colors.blue),
+                    title: Text(_selectedDate == null ? "Choose Date" : DateFormat("dd MMM yyyy").format(_selectedDate!),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                    tileColor: Colors.grey[200],
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onTap: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2030),
+                      );
+                      if (pickedDate != null) {
+                        setState(() {
+                          _selectedDate = pickedDate;
+                        });
+                      }
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  _buildSectionTitle("Select Time Slot"),
+                  DropdownButtonFormField<String>(
+                    value: _selectedTimeSlot,
+                    hint: Text("Choose Time Slot"),
+                    decoration: _inputDecoration(),
+                    items: ["Morning", "Afternoon", "Full Day"].map((slot) {
+                      return DropdownMenuItem<String>(
+                        value: slot,
+                        child: Text(slot),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedTimeSlot = value;
+                      });
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  _buildSectionTitle("Purpose"),
+                  TextField(
+                    controller: _purposeController,
+                    maxLines: 3,
+                    decoration: _inputDecoration(),
+                  ),
+                ],
+              ),
             ),
             SizedBox(height: 20),
             Center(
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
                 onPressed: _submitODRequest,
-                child: Text("Submit OD Request"),
+                icon: Icon(Icons.send,color: Colors.white),
+                label: Text("Submit OD Request",style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: Colors.black,
+                  elevation: 5,
+                ),
               ),
             ),
             SizedBox(height: 20),
-            Text("Previous Requests", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _firestore.collection("od_requests").orderBy("timestamp", descending: true).snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-                  List<QueryDocumentSnapshot> docs = snapshot.data!.docs;
-                  if (docs.isEmpty) return Center(child: Text("No OD requests found."));
-                  return ListView.builder(
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      var data = docs[index].data() as Map<String, dynamic>;
-                      return Card(
-                        margin: EdgeInsets.all(8),
-                        child: ListTile(
-                          title: Text("Purpose: ${data["purpose"]}"),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Date: ${data["date"]}, ${data["time_slot"]}"),
-                              Text("Status: ${data["status"]}", style: TextStyle(fontWeight: FontWeight.bold, color: getStatusColor(data["status"]))),
-                              if (data["timestamp"] != null) Text("Requested on: ${formatDate(data["timestamp"])}", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                            ],
-                          ),
+            _buildSectionTitle("Previous Requests"),
+            StreamBuilder<QuerySnapshot>(
+              stream: _firestore.collection("od_requests").orderBy("timestamp", descending: true).snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+                List<QueryDocumentSnapshot> docs = snapshot.data!.docs;
+                if (docs.isEmpty) return Center(child: Text("No OD requests found."));
+                return Column(
+                  children: docs.map((doc) {
+                    var data = doc.data() as Map<String, dynamic>;
+                    return _buildCard(
+                      child: ListTile(
+                        title: Text("Name: ${data["name"]}", style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Email: ${data["email"]}"),
+                            Text("Date: ${data["date"]}, ${data["time_slot"]}"),
+                            Text("Status: ${data["status"]}",
+                                style: TextStyle(fontWeight: FontWeight.bold, color: getStatusColor(data["status"]))),
+                            if (data["timestamp"] != null)
+                              Text("Requested on: ${formatDate(data["timestamp"])}",
+                                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          ],
                         ),
-                      );
-                    },
-                  );
-                },
-              ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Text(
+        title,
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+      ),
+    );
+  }
+
+  Widget _buildCard({required Widget child}) {
+    return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: child,
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: Colors.grey[200],
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
     );
   }
 

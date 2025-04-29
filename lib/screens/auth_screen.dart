@@ -65,7 +65,7 @@ class _AuthScreenState extends State<AuthScreen> {
         if (userDoc.exists) {
           // Navigate to BottomNavApp (main app)
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (ctx) =>  GetInputs()),
+            MaterialPageRoute(builder: (ctx) =>  HomePage()),
           );
         } else {
           // Navigate to GetInputs screen for new users

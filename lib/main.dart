@@ -7,7 +7,7 @@ import 'firebase_options.dart';
 import 'package:students_connect/screens/get_inputs.dart';
 import 'package:students_connect/screens/auth_screen.dart';
 import 'package:cloudinary_url_gen/cloudinary.dart';
-
+import 'package:hive_flutter/hive_flutter.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -15,6 +15,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
 
   // Initialize Cloudinary
   var cloudinary = Cloudinary.fromStringUrl(

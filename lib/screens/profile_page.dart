@@ -1,34 +1,197 @@
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'auth_screen.dart'; // Ensure this screen handles authentication logic
+import 'package:flutter/material.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  User? _user;
+  Map<String, dynamic>? _userData;
+  List<String> _registeredEvents = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    _user = _auth.currentUser;
+    if (_user != null) {
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(_user!.email).get();
+
+      if (userDoc.exists) {
+        setState(() {
+          _userData = userDoc.data() as Map<String, dynamic>?;
+        });
+      }
+    }
+    _fetchRegisteredEvents();
+  }
+
+  Future<void> _fetchRegisteredEvents() async {
+    if (_user != null) {
+      QuerySnapshot registrations = await _firestore
+          .collection('registered_events')
+          .where('email', isEqualTo: _user!.email)
+          .get();
+
+      List<String> events =
+          registrations.docs.map((doc) => doc["event"].toString()).toList();
+
+      setState(() {
+        _registeredEvents = events;
+      });
+    }
+  }
 
   void _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut(); // Firebase sign out
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const AuthScreen()),
-    ); // Navigate to authentication screen
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushReplacementNamed(context, "/auth");
   }
 
   @override
   Widget build(BuildContext context) {
+    final String userName = _userData?["name"] ?? "Guest";
+    final String email = _user?.email ?? "Not Available";
+    final String? profileImage = _userData?["profileImage"];
+
     return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 51, 48, 48),
       appBar: AppBar(
-        title: const Text('Home Screen'),
+         backgroundColor: Colors.grey, centerTitle: true,
+        title: const Text("Profile", style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _logout(context), // Call logout function
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () => _logout(context),
           ),
         ],
       ),
-      body: const Center(
-        child: Text('Welcome to the Home Screen!'),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildProfileHeader(userName, email, profileImage),
+            const SizedBox(height: 30),
+            _buildSectionCard("Upcoming Events", _userData?["upcomingEvents"] ?? []),
+            const SizedBox(height: 20),
+            _buildSectionCard("Registered Events", _registeredEvents),
+            const SizedBox(height: 30),
+            _buildSettingsSection(),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildProfileHeader(String userName, String email, String? profileImage) {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blueAccent.withOpacity(0.5),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: CircleAvatar(
+            radius: 60,
+            backgroundColor: Colors.grey.shade800,
+            backgroundImage: profileImage != null ? NetworkImage(profileImage) : null,
+            child: profileImage == null
+                ? Text(
+                    userName[0].toUpperCase(),
+                    style: const TextStyle(fontSize: 50, color: Colors.white),
+                  )
+                : null,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(userName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+        Text(email, style: const TextStyle(fontSize: 16, color: Colors.white60)),
+        const SizedBox(height: 10),
+        const Divider(color: Colors.white24, thickness: 1, indent: 50, endIndent: 50),
+      ],
+    );
+  }
+
+  Widget _buildSectionCard(String title, List<dynamic> items) {
+    return Card(
+      color: Colors.grey[900],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 6,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 10),
+            const Divider(color: Colors.white24, thickness: 1),
+            const SizedBox(height: 10),
+            items.isEmpty
+                ? const Text("No events available.", style: TextStyle(color: Colors.white60))
+                : Column(
+                    children: items.map((event) => ListTile(
+                      title: Text(
+                        event.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    )).toList(),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsSection() {
+    return Card(
+      color: Colors.grey[900],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 6,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text("Settings & Options", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 10),
+            const Divider(color: Colors.white24, thickness: 1),
+            const SizedBox(height: 10),
+            _buildSettingsTile(Icons.settings, "Settings", "/settings"),
+            _buildSettingsTile(Icons.lock, "Privacy Policy", "/privacy"),
+            _buildSettingsTile(Icons.help_outline, "Help & Support", "/help"),
+            _buildSettingsTile(Icons.info_outline, "About", "/about"),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTile(IconData icon, String title, String route) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white70),
+      title: Text(title, style: const TextStyle(color: Colors.white70)),
+      trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white60, size: 18),
+      onTap: () {
+        Navigator.pushNamed(context, route);
+      },
     );
   }
 }

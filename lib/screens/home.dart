@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:students_connect/screens/EventDetailsPage.dart';
+import 'package:students_connect/screens/NotificationPage.dart';
+import 'package:students_connect/screens/ViewAllPage.dart';
 import 'package:students_connect/screens/profile_page.dart';
+import 'package:students_connect/screens/qr_screen.dart';
+
 import 'package:students_connect/screens/reels_page.dart';
 import 'package:students_connect/screens/event_page.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 class HomePage extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
@@ -14,16 +19,7 @@ class _HomePageState extends State<HomePage> {
      TextEditingController _searchController = TextEditingController();
 
   // Example filter categories and options
-  final Map<String, List<String>> filterOptions = {
-    'Departments': ['CSE', 'ECE', 'EEE', 'Mechanical', 'Civil', 'Biotech'],
-    'Event Type': ['Hackathon', 'Workshop', 'Fest','Technology', 'Webinar', 'Competition'],
-    'Audience': ['Inter-College', 'Intra-College', 'Community-Based'],
-    'Genre': ['Technical', 'Cultural','Tchnology', 'Sports', 'Art & Design'],
-    'Prize': ['Low to High', 'High to Low'],
-    'Rating': ['Top Rated', 'Most Popular'],
-    'Demand': ['High Demand', 'Trending Now'],
-  };
- 
+
   
   bool isBookmarked = false; //
   bool _isSearchOpen = false;
@@ -31,13 +27,6 @@ String _searchQuery = "";
   String selectedTag = "";
   bool showSearch = false;
 
-  List<Map<String, String>> events = [
-    {"title": "Tech Conference", "tag": "Technology"},
-    {"title": "Music Fest", "tag": "Entertainment"},
-    {"title": "Startup Meetup", "tag": "Business"},
-    {"title": "AI Summit", "tag": "Technology"},
-    {"title": "Art Expo", "tag": "Art"},
-  ];
 
   void _toggleSearch(String query) {
     setState(() {
@@ -56,154 +45,19 @@ String _searchQuery = "";
   }
 
 
-  List<int> _stackCards = [0, 1, 2, 3, 4,5,6];
+  @override
+  void initState() {
+    super.initState();
+    fetchAcceptedEvents();
+ 
 
- void _showFilterDialog() {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true, // Allows custom height
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    builder: (context) {
-      return FractionallySizedBox(
-        heightFactor: 0.5, // Opens at half the screen height
-        child: StatefulBuilder(
-          builder: (context, setState) {
-            return Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Filters',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 12),
-
-                  // Scrollable List to Prevent Overflow
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          if (selectedFilters.isNotEmpty) ...[
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: selectedFilters.map((filter) {
-                                return Chip(
-                                  label: Text(
-                                    filter,
-                                    style: TextStyle(color: Colors.black87),
-                                  ),
-                                  backgroundColor: Colors.grey[300],
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  deleteIcon: Icon(Icons.close, size: 18, color: Colors.black54),
-                                  onDeleted: () {
-                                    setState(() {
-                                      selectedFilters.remove(filter);
-                                    });
-                                  },
-                                );
-                              }).toList(),
-                            ),
-                            SizedBox(height: 12),
-                          ],
-
-                          // Filter Options
-                          ...filterOptions.entries.map((entry) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  entry.key,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: entry.value.map((option) {
-                                    return ChoiceChip(
-                                      label: Text(option),
-                                      labelStyle: TextStyle(
-                                        color: selectedFilters.contains(option)
-                                            ? Colors.white
-                                            : Colors.black87,
-                                      ),
-                                      backgroundColor: Colors.grey[300],
-                                      selectedColor: Colors.blue,
-                                      selected: selectedFilters.contains(option),
-                                      onSelected: (selected) {
-                                        setState(() {
-                                          if (selected) {
-                                            selectedFilters.add(option);
-                                          } else {
-                                            selectedFilters.remove(option);
-                                          }
-                                        });
-                                      },
-                                    );
-                                  }).toList(),
-                                ),
-                                SizedBox(height: 16),
-                              ],
-                            );
-                          }).toList(),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Apply & Reset Buttons
-                  Container(
-                    padding: EdgeInsets.only(top: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 4,
-                          ),
-                          child: Text('Apply', style: TextStyle(color: Colors.white)),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              selectedFilters.clear();
-                            });
-                          },
-                          child: Text('Reset All', style: TextStyle(color: Colors.redAccent)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      );
-    },
-  );
-}
+  }
+List<int> _stackCards = []; 
 
 
+  int currentIndex = 0; // Track card position
 
-  void _moveCardToBack() {
+void _moveCardToBack() {
     setState(() {
       final topCard = _stackCards.removeAt(0);
       _stackCards.add(topCard);
@@ -214,52 +68,91 @@ String _searchQuery = "";
     setState(() {
       final lastCard = _stackCards.removeLast();
       _stackCards.insert(0, lastCard);
+       
     });
   }
+
+    void _onCardTap() {
+    _moveCardForward();
+  }
+   List<Map<String, dynamic>> events = [];
+
+  List<Map<String, dynamic>> acceptedEvents = [];
+ List<Map<String, dynamic>> _events = [];
+ 
+
+Future<void> fetchAcceptedEvents() async {
+  try {
+    print("Fetching events from Firestore...");
+
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection("events")
+        .get(); // Fetch all events first
+
+    List<Map<String, dynamic>> allEvents = querySnapshot.docs
+        .map((doc) => doc.data() as Map<String, dynamic>)
+        .toList();
+
+    print("All Events: ${allEvents.length}");
+    for (var event in allEvents) {
+      print("Event: ${event['title']} | Status: ${event['status']}");
+    }
+
+    // Filter accepted events (case-insensitive)
+    List<Map<String, dynamic>> acceptedEvents = allEvents
+        .where((event) => (event["status"]?.toString().toLowerCase() ?? "") == "accepted")
+        .toList();
+
+    print("Accepted Events: ${acceptedEvents.length}");
+    for (var event in acceptedEvents) {
+      print("Accepted Event: ${event['title']} | Status: ${event['status']}");
+    }
+
+    setState(() {
+      _events = acceptedEvents;
+      _stackCards = List.generate(_events.length, (index) => index);
+    });
+
+    print("Stack Cards: $_stackCards");
+  } catch (e) {
+    print("Error fetching events: $e");
+  }
+}
+
 
 
   @override
   Widget build(BuildContext context) {
-  List<Map<String, String>> filteredEvents = events.where((event) {
-    bool matchesSearch = event["title"]!.toLowerCase().contains(_searchQuery) ||
-        event["tag"]!.toLowerCase().contains(_searchQuery);
 
-    bool matchesTags =
-        selectedFilters.isEmpty || selectedFilters.contains(event["tag"]);
 
-    return matchesSearch && matchesTags;
-  }).toList();
 
     return Scaffold(
        appBar: AppBar(
-          backgroundColor: Colors.grey[200],
-          elevation: 1,
-          leading: IconButton(
-            icon: Icon(showSearch ? Icons.arrow_back : Icons.search, color: Colors.black87),
-            onPressed: _toggleSearchBar,
-          ),
-          title: showSearch
-              ? TextField(
-                  controller: _searchController,
-                  onChanged: _toggleSearch,
-                  decoration: InputDecoration(
-                    hintText: "Search...",
-                    border: InputBorder.none,
-                  ),
-                )
-              : Text(
+          backgroundColor: Colors.grey,
+          elevation: 1, 
+          title: Text(
                   "Event Hub",
-                  style: TextStyle(color: Colors.black87),
+                  style: TextStyle(color: Colors.black87,fontWeight: FontWeight.bold),
                 ),
           actions: [
             IconButton(
               icon: Icon(Icons.qr_code_scanner, color: Colors.black87),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: Icon(Icons.filter_list_outlined, color: Colors.black87),
-              onPressed: _showFilterDialog,
-            ),
+              onPressed: () {Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => QRScannerScreen()),
+    );
+                 
+              },
+            ), IconButton(
+      icon: Icon(Icons.notifications, color: Colors.black87),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => NotificationPage()),
+        );
+      },
+    ),
+            
             
           ],
         ),
@@ -283,18 +176,27 @@ String _searchQuery = "";
                           color: Colors.grey[800],
                         ),
                       ),
-                      Row(
-                        children: [
-                          Text(
-                        "View all  ",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                        ],
-                      ),
+                     Row(
+  children: [
+    GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ViewAllPage()),
+        );
+      },
+      child: Text(
+        "View all  ",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[800],
+        ),
+      ),
+    ),
+  ],
+),
+
                       
                     ],
                     
@@ -335,27 +237,28 @@ String _searchQuery = "";
             SizedBox(height: 12),
        Padding(
   padding: EdgeInsets.symmetric(vertical: 16),
-  child: filteredEvents.isEmpty
-      ? Center(child: Text("No events found"))
-      : Container(
-          height: 230,
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: filteredEvents.length,
-            itemBuilder: (context, index) {
-              final event = filteredEvents[index];
-              return GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EventDetailsPage(event: event),
-                    ),
-                  );
-                },
+   child: _events.isEmpty
+          ? Center(child: Text("Fetching events..."))
+          : Container(
+              height: 230,
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _events.length,
+                itemBuilder: (context, index) {
+                  final event = _events[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EventDetailsPage(event: event),
+                        ),
+                      );
+                    },
                 child: Container(
-                  width: 300,
+                  width: 330,
+                
                   margin: EdgeInsets.only(right: 16),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -379,57 +282,85 @@ String _searchQuery = "";
                           color: Colors.blueAccent.withOpacity(0.2),
                           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                         ),
+                         child: event["imageUrl"] != null && event["imageUrl"].isNotEmpty
+      ? ClipRRect(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          child: Image.network(
+            event["imageUrl"]!,
+            width: double.infinity,
+            height: 90,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.blueAccent.withOpacity(0.2), // Fallback placeholder color
+                height: 95,
+              );
+            },
+          ),
+        )
+      : Container(
+          color: Colors.blueAccent.withOpacity(0.2), // Placeholder color
+          height: 95,
+        
+),
                       ),
-                      Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              event["title"]!,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              "This is a brief description of ${event["title"]}.",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.category, size: 18, color: Colors.grey[700]),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      event["tag"]!,
-                                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                                    ),
-                                  ],
+                      
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                event["name"] ?? "No Title",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
                                 ),
-                                Row(
-                                  children: [
-                                    Icon(Icons.event, size: 18, color: Colors.grey[700]),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      "Free Entry",
-                                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                                    ),
-                                  ],
+                              ),
+                              SizedBox(height: 5),
+                              Text(
+                                event["description"] ??  "This is a brief description of ${event["title"]}.",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: const Color.fromARGB(255, 57, 55, 55),
                                 ),
-                              ],
-                            ),
-                          ],
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 5),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.category, size: 18, color: Colors.grey[700]),
+                                      SizedBox(width: 4),
+                                      Text(
+                                     (event["tags"] != null && event["tags"] is List && event["tags"].isNotEmpty) 
+                          ? event["tags"][0] 
+                          : "Unknown",
+                        
+                                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.event, size: 18, color: Colors.grey[700]),
+                                      SizedBox(width: 4),
+                                      Text(
+                                       event["entry"] ?? "Free Entry",
+                                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -446,7 +377,7 @@ String _searchQuery = "";
             SizedBox(height: 16),
 
             // Stacked Event Cards with Title and Navigation
-            Column(
+             Column(
               children: [
                 // Title and Buttons for Navigation
                 Padding(
@@ -487,6 +418,7 @@ String _searchQuery = "";
         child: Stack(
           alignment: Alignment.center,
           children: _stackCards.map((index) {
+             var event = _events[index];
             return AnimatedPositioned(
               duration: Duration(milliseconds: 300),
               curve: Curves.easeInOut,
@@ -507,39 +439,47 @@ String _searchQuery = "";
                   ),
                   child: Container(
                     width: 350,
-                    height: 450, // Increase card height if needed
+                    height: 460, // Increase card height if needed
                     padding: EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          height: 200,
+                          height: 180,
                           decoration: BoxDecoration(
                             color: Colors.grey[200],
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Center(
-                            child: Text(
-                              "Image Placeholder",
-                              style: TextStyle(color: Colors.black54),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 10),
+                            child: _events[index]['imageUrl'] != null
+        ? Image.network(
+            _events[index]['imageUrl'],
+            fit: BoxFit.cover,
+            width: double.infinity, // Ensures image takes full width
+            height: 200,
+          )
+        : Center(
+            child: Text(
+              "Image Placeholder",
+              style: TextStyle(color: Colors.black54),
+            ),
+          ), ),
+                        SizedBox(height: 7),
                         Text(
-                          "Event ${index + 1}",
+                         event['name'] ?? "Event",
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: const Color.fromARGB(255, 0, 0, 0),
                           ),
                         ),
-                        SizedBox(height: 8),
+                        SizedBox(height: 5),
                         Text(
-                          "This is a detailed description of event ${index + 1}.",
+                         event['description'] ??
+                                  "This is a detailed description of event.",
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white70,
+                            fontWeight: FontWeight.w500, 
+                            color: const Color.fromARGB(179, 35, 35, 35),
                           ),
                         ),
                         
@@ -637,7 +577,7 @@ String _searchQuery = "";
                                               Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
-                                                  builder: (context) => EventDetailsPage(eventIndex: index),
+                                                  builder: (context) => EventDetailsPage(event: _events[index]),
                                                 ),
                                               );
                                             },
@@ -695,10 +635,10 @@ String _searchQuery = "";
                                               height: 40,
                                               width: 40,
                                               decoration: BoxDecoration(
-                                                color: Colors.white.withOpacity(0.2),
+                                                color: const Color.fromARGB(255, 251, 250, 250).withOpacity(0.2),
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
-                                              child: Icon(Icons.more_vert, color: Colors.white),
+                                              child: Icon(Icons.more_vert, color: const Color.fromARGB(255, 41, 41, 41)),
                                             ),
                                           ),
                                         ],
@@ -716,8 +656,7 @@ String _searchQuery = "";
     ),
   ),
 ),
-
-              ],
+      ],
             ),
           ],
         ),
