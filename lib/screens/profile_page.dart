@@ -65,13 +65,17 @@ class _ProfilePageState extends State<ProfilePage> {
     final String? profileImage = _userData?["profileImage"];
 
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 51, 48, 48),
+      backgroundColor: Colors.white,  // Light mode background
       appBar: AppBar(
-         backgroundColor: Colors.grey, centerTitle: true,
-        title: const Text("Profile", style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold)),
+         backgroundColor: Colors.grey, centerTitle: true,// Light app bar color
+    
+        title: const Text(
+          "Profile",
+          style: TextStyle(color: Color.fromARGB(255, 8, 8, 8), fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: const Icon(Icons.logout, color: Color.fromARGB(255, 0, 0, 0)),
             onPressed: () => _logout(context),
           ),
         ],
@@ -110,7 +114,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           child: CircleAvatar(
             radius: 60,
-            backgroundColor: Colors.grey.shade800,
+            backgroundColor: const Color.fromARGB(255, 134, 134, 134), // Light background for the avatar
             backgroundImage: profileImage != null ? NetworkImage(profileImage) : null,
             child: profileImage == null
                 ? Text(
@@ -121,17 +125,17 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         const SizedBox(height: 10),
-        Text(userName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-        Text(email, style: const TextStyle(fontSize: 16, color: Colors.white60)),
+        Text(userName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
+        Text(email, style: const TextStyle(fontSize: 16, color: Colors.black54)),
         const SizedBox(height: 10),
-        const Divider(color: Colors.white24, thickness: 1, indent: 50, endIndent: 50),
+        const Divider(color: Colors.black26, thickness: 1, indent: 50, endIndent: 50),
       ],
     );
   }
 
   Widget _buildSectionCard(String title, List<dynamic> items) {
     return Card(
-      color: Colors.grey[900],
+      color: const Color.fromARGB(255, 230, 230, 230), // Card color for light mode
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 6,
       child: Padding(
@@ -139,18 +143,18 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
             const SizedBox(height: 10),
-            const Divider(color: Colors.white24, thickness: 1),
+            const Divider(color: Colors.black26, thickness: 1),
             const SizedBox(height: 10),
             items.isEmpty
-                ? const Text("No events available.", style: TextStyle(color: Colors.white60))
+                ? const Text("No events available.", style: TextStyle(color: Colors.black54))
                 : Column(
                     children: items.map((event) => ListTile(
                       title: Text(
                         event.toString(),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white70),
+                        style: const TextStyle(color: Colors.black87),
                       ),
                     )).toList(),
                   ),
@@ -162,7 +166,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildSettingsSection() {
     return Card(
-      color: Colors.grey[900],
+      color: const Color.fromARGB(255, 230, 230, 230),   // Light card color
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 6,
       child: Padding(
@@ -170,9 +174,9 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text("Settings & Options", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const Text("Settings & Options", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
             const SizedBox(height: 10),
-            const Divider(color: Colors.white24, thickness: 1),
+            const Divider(color: Colors.black26, thickness: 1),
             const SizedBox(height: 10),
             _buildSettingsTile(Icons.settings, "Settings", "/settings"),
             _buildSettingsTile(Icons.lock, "Privacy Policy", "/privacy"),
@@ -186,9 +190,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildSettingsTile(IconData icon, String title, String route) {
     return ListTile(
-      leading: Icon(icon, color: Colors.white70),
-      title: Text(title, style: const TextStyle(color: Colors.white70)),
-      trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white60, size: 18),
+      leading: Icon(icon, color: Colors.black54),
+      title: Text(title, style: const TextStyle(color: Colors.black54)),
+      trailing: const Icon(Icons.arrow_forward_ios, color: Colors.black38, size: 18),
       onTap: () {
         Navigator.pushNamed(context, route);
       },

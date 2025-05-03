@@ -12,6 +12,16 @@ class _CommunityPageState extends State<CommunityPage> {
   final DatabaseReference _database = FirebaseDatabase.instance.ref("community");
   final TextEditingController _messageController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ScrollController _scrollController = ScrollController();
+
+  String _selectedTag = "General"; // Default tag
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   void _postMessage() async {
     String? userEmail = _auth.currentUser?.email;
@@ -23,14 +33,26 @@ class _CommunityPageState extends State<CommunityPage> {
       "email": userEmail,
       "message": _messageController.text.trim(),
       "timestamp": timestamp,
+      "tag": _selectedTag,
+      "likes": 0,
     });
 
     _messageController.clear();
   }
 
+  void _incrementLike(String messageId, int currentLikes) {
+    _database.child(messageId).update({
+      "likes": currentLikes + 1,
+    });
+  }
+
   String formatTimestamp(String timestamp) {
     DateTime dateTime = DateTime.parse(timestamp);
-    return DateFormat('dd MMM yyyy, hh:mm a').format(dateTime);
+    return DateFormat('hh:mm a').format(dateTime);
+  }
+
+  Color getAlternateColor(int index) {
+    return index % 2 == 0 ? Colors.blue : Colors.grey.shade400;
   }
 
   @override
@@ -38,11 +60,11 @@ class _CommunityPageState extends State<CommunityPage> {
     String? currentUserEmail = _auth.currentUser?.email;
 
     return Scaffold(
-      backgroundColor: Colors.white, // Clean white background
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text("Community", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-        backgroundColor: Colors.grey,
-        elevation: 1, 
+        title: Text("TalkTrove", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+       backgroundColor: Colors.grey,
+        elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: Colors.black),
       ),
@@ -54,10 +76,7 @@ class _CommunityPageState extends State<CommunityPage> {
               builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
                 if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
                   return Center(
-                    child: Text(
-                      "No messages yet. Start the discussion!",
-                      style: TextStyle(fontSize: 16, color: Colors.black54),
-                    ),
+                    child: Text("No discussions yet.", style: TextStyle(fontSize: 16, color: Colors.black54)),
                   );
                 }
 
@@ -68,55 +87,126 @@ class _CommunityPageState extends State<CommunityPage> {
                     "email": entry.value["email"],
                     "message": entry.value["message"],
                     "timestamp": entry.value["timestamp"],
+                    "tag": entry.value["tag"] ?? "General",
+                    "likes": entry.value["likes"] ?? 0,
                   };
                 }).toList();
 
                 messagesList.sort((a, b) => b["timestamp"].compareTo(a["timestamp"]));
 
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController.hasClients) {
+                    _scrollController.animateTo(
+                      _scrollController.position.maxScrollExtent,
+                      duration: Duration(milliseconds: 500),
+                      curve: Curves.easeOut,
+                    );
+                  }
+                });
+
                 return ListView.builder(
-                  padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  controller: _scrollController,
+                  padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                   itemCount: messagesList.length,
                   itemBuilder: (context, index) {
                     var msg = messagesList[index];
                     bool isCurrentUser = msg["email"] == currentUserEmail;
 
-                    return Align(
-                      alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: EdgeInsets.symmetric(vertical: 6),
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isCurrentUser ? Colors.black : Colors.grey[200],
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(12),
-                            topRight: Radius.circular(12),
-                            bottomLeft: isCurrentUser ? Radius.circular(12) : Radius.circular(0),
-                            bottomRight: isCurrentUser ? Radius.circular(0) : Radius.circular(12),
+                    return Stack(
+                      children: [
+                        if (index != messagesList.length - 1)
+                          Positioned(
+                            left: 27,
+                            top: 40,
+                            bottom: 0,
+                            child: Container(
+                              width: 2,
+                              color: Colors.grey.shade300,
+                            ),
                           ),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black12, blurRadius: 3, spreadRadius: 1),
-                          ],
-                        ),
-                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-                        child: Column(
+                        Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              msg["message"],
-                              style: TextStyle(fontSize: 16, color: isCurrentUser ? Colors.white : Colors.black87),
+                            Column(
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: isCurrentUser
+                                      ? Colors.black
+                                      : getAlternateColor(index),
+                                  child: Text(
+                                    msg["email"][0].toUpperCase(),
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(height: 4),
-                            Text(
-                              isCurrentUser ? "You" : msg["email"],
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isCurrentUser ? Colors.white70 : Colors.black54),
-                            ),
-                            Text(
-                              formatTimestamp(msg["timestamp"]),
-                              style: TextStyle(fontSize: 12, color: isCurrentUser ? Colors.white60 : Colors.black45),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                margin: EdgeInsets.only(bottom: 30),
+                                padding: EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isCurrentUser ? Colors.blue.shade50 : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(2, 2)),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          isCurrentUser ? "You" : msg["email"].split('@')[0],
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.shade100,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            msg["tag"],
+                                            style: TextStyle(fontSize: 12, color: Colors.black87),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 6),
+                                    Text(msg["message"], style: TextStyle(fontSize: 15)),
+                                    SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          formatTimestamp(msg["timestamp"]),
+                                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                                        ),
+                                        Row(
+                                          children: [
+                                            Text('${msg["likes"]}'),
+                                            IconButton(
+                                              icon: Icon(Icons.thumb_up_alt_outlined, size: 18),
+                                              onPressed: () => _incrementLike(msg["id"], msg["likes"]),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     );
                   },
                 );
@@ -124,24 +214,23 @@ class _CommunityPageState extends State<CommunityPage> {
             ),
           ),
           Padding(
-            padding: EdgeInsets.all(12),
+            padding: EdgeInsets.all(16),
             child: Row(
               children: [
+               
+                SizedBox(width: 10),
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black12, blurRadius: 2, spreadRadius: 1),
-                      ],
                     ),
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
                       child: TextField(
                         controller: _messageController,
                         decoration: InputDecoration(
-                          hintText: "Need help? Post here...",
+                          hintText: "Ask a doubt or share a tip...",
                           border: InputBorder.none,
                         ),
                       ),
@@ -151,12 +240,12 @@ class _CommunityPageState extends State<CommunityPage> {
                 SizedBox(width: 10),
                 ClipOval(
                   child: Material(
-                    color: Colors.black,
+                    color: const Color.fromARGB(255, 0, 0, 0),
                     child: InkWell(
                       splashColor: Colors.white30,
                       onTap: _postMessage,
                       child: Padding(
-                        padding: EdgeInsets.all(10),
+                        padding: EdgeInsets.all(12),
                         child: Icon(Icons.send, color: Colors.white, size: 24),
                       ),
                     ),

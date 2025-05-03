@@ -62,6 +62,11 @@ dependencies:
   shared_preferences: ^2.5.2
   mobile_scanner: ^6.0.6
   hive_flutter: ^1.1.0
+  carousel_slider: ^5.0.0
+  fl_chart: ^0.71.0
+  percent_indicator: ^4.2.5
+  pie_chart: ^5.4.0
+  table_calendar: ^3.2.0
 
  
 

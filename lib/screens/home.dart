@@ -127,23 +127,27 @@ Future<void> fetchAcceptedEvents() async {
 
 
     return Scaffold(
-       appBar: AppBar(
-          backgroundColor: Colors.grey,
-          elevation: 1, 
-          title: Text(
-                  "Event Hub",
-                  style: TextStyle(color: Colors.black87,fontWeight: FontWeight.bold),
-                ),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.qr_code_scanner, color: Colors.black87),
-              onPressed: () {Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => QRScannerScreen()),
-    );
-                 
-              },
-            ), IconButton(
+      appBar: AppBar(
+  backgroundColor: Colors.grey,
+  elevation: 1,
+  title: Text(
+    "StuLink",
+    style: TextStyle(
+      color: Colors.black87,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+  actions: [
+    IconButton(
+      icon: Icon(Icons.qr_code_scanner, color: Colors.black87),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => QRScannerScreen()),
+        );
+      },
+    ),
+    IconButton(
       icon: Icon(Icons.notifications, color: Colors.black87),
       onPressed: () {
         Navigator.push(
@@ -152,10 +156,18 @@ Future<void> fetchAcceptedEvents() async {
         );
       },
     ),
-            
-            
-          ],
-        ),
+    IconButton(
+      icon: Icon(Icons.account_circle, color: Colors.black87),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ProfilePage()),
+        );
+      },
+    ),
+  ],
+),
+
            
       body: SingleChildScrollView(
         child: Column(

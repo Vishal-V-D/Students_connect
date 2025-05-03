@@ -8,7 +8,7 @@ class EventHistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Event History",style: TextStyle(fontWeight: FontWeight.bold)),
+      appBar: AppBar(title: Text("Creator Zone",style: TextStyle(fontWeight: FontWeight.bold)),
             backgroundColor: Colors.grey,
              centerTitle: true,
             ),

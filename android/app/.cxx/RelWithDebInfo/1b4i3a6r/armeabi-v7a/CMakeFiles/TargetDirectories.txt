@@ -1,0 +1,2 @@
+D:/FOSS/Foss-Hack-Students-Connect/android/app/.cxx/RelWithDebInfo/1b4i3a6r/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/FOSS/Foss-Hack-Students-Connect/android/app/.cxx/RelWithDebInfo/1b4i3a6r/armeabi-v7a/CMakeFiles/rebuild_cache.dir

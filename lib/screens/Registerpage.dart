@@ -9,7 +9,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class RegisterPage extends StatefulWidget {
   final String eventId;
-
   RegisterPage({required this.eventId});
 
   @override
@@ -77,58 +76,41 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> registerTeam() async {
-  if (_formKey.currentState!.validate()) {
-    final String? currentUserEmail = FirebaseAuth.instance.currentUser?.email;
-    if (currentUserEmail == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: User not logged in")),
-      );
-      return;
-    }
+    if (_formKey.currentState!.validate()) {
+      final String? currentUserEmail = FirebaseAuth.instance.currentUser?.email;
+      if (currentUserEmail == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: User not logged in")),
+        );
+        return;
+      }
 
-    List<Map<String, String>> teamMembers = [];
+      List<Map<String, String>> teamMembers = [];
+      for (int i = 0; i < teamSize; i++) {
+        teamMembers.add({
+          "name": nameControllers[i].text.trim(),
+          "email": emailControllers[i].text.trim(),
+        });
+      }
 
-    for (int i = 0; i < teamSize; i++) {
-      teamMembers.add({
-        "name": nameControllers[i].text.trim(),
-        "email": emailControllers[i].text.trim(),
-      });
-    }
+      String teamIdentifier = teamSize > 1
+          ? teamNameController.text.trim()
+          : teamMembers[0]["name"]!;
 
-    // If teamSize == 1, use the first member's name as the team name
-    String teamIdentifier = teamSize > 1 ? teamNameController.text.trim() : teamMembers[0]["name"]!;
+      try {
+        await FirebaseFirestore.instance.collection("registrations").add({
+          "eventId": widget.eventId,
+          "eventName": eventName,
+          "teamName": teamIdentifier,
+          "teamMembers": teamMembers,
+          "college": collegeController.text.trim(),
+          "registeredBy": currentUserEmail,
+          "timestamp": FieldValue.serverTimestamp(),
+        });
 
-    try {
-      // Save registration data in Firestore
-      await FirebaseFirestore.instance.collection("registrations").add({
-        "eventId": widget.eventId,
-        "eventName": eventName,
-        "teamName": teamIdentifier,
-        "teamMembers": teamMembers,
-        "college": collegeController.text.trim(),
-        "registeredBy": currentUserEmail, // ✅ Save the current user's email
-        "timestamp": FieldValue.serverTimestamp(),
-      });
-
-      // Save registration under the logged-in user's Firestore document
-      await FirebaseFirestore.instance
-          .collection("users")
-          .doc(currentUserEmail)
-          .collection("registeredEvents")
-          .doc(widget.eventId)
-          .set({
-        "eventName": eventName,
-        "eventDate": eventDate,
-        "eventLocation": eventLocation,
-        "teamName": teamIdentifier,
-        "timestamp": FieldValue.serverTimestamp(),
-      });
-
-      // Add event details under each team member's Firestore document
-      for (var member in teamMembers) {
         await FirebaseFirestore.instance
             .collection("users")
-            .doc(member["email"])
+            .doc(currentUserEmail)
             .collection("registeredEvents")
             .doc(widget.eventId)
             .set({
@@ -136,26 +118,40 @@ class _RegisterPageState extends State<RegisterPage> {
           "eventDate": eventDate,
           "eventLocation": eventLocation,
           "teamName": teamIdentifier,
-          "registeredBy": currentUserEmail, // ✅ Store who registered them
           "timestamp": FieldValue.serverTimestamp(),
         });
+
+        for (var member in teamMembers) {
+          await FirebaseFirestore.instance
+              .collection("users")
+              .doc(member["email"])
+              .collection("registeredEvents")
+              .doc(widget.eventId)
+              .set({
+            "eventName": eventName,
+            "eventDate": eventDate,
+            "eventLocation": eventLocation,
+            "teamName": teamIdentifier,
+            "registeredBy": currentUserEmail,
+            "timestamp": FieldValue.serverTimestamp(),
+          });
+        }
+
+        sendEmailsWithQR(teamIdentifier, teamMembers);
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) =>
+                  SuccessScreen(eventName: eventName)),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Registration failed: ${e.toString()}")),
+        );
       }
-
-      // Send confirmation emails with QR codes
-      sendEmailsWithQR(teamIdentifier, teamMembers);
-
-      // Navigate to success screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => SuccessScreen(eventName: eventName)),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Registration failed: ${e.toString()}")),
-      );
     }
   }
-}
 
   void sendEmailsWithQR(String teamName, List<Map<String, String>> teamMembers) async {
     String username = "sdgproximus@gmail.com";
@@ -191,8 +187,7 @@ Your unique QR code is attached to this email. Please present it at the event fo
 Best Regards,  
 Event Organizer Team  
 """
-          ..attachments.add(FileAttachment(qrFile)
-            ..fileName = "$teamName-QRCode.png");
+          ..attachments.add(FileAttachment(qrFile)..fileName = "$teamName-QRCode.png");
 
         try {
           await send(message, smtpServer);
@@ -200,43 +195,144 @@ Event Organizer Team
       }
     }
   }
+Widget buildStyledTextField(String label, TextEditingController controller,
+    {bool isEmail = false, IconData icon = Icons.person}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: TextFormField(
+      controller: controller,
+      keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
+      validator: (value) =>
+          (value == null || value.isEmpty) ? 'Enter $label' : null,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: const Color.fromARGB(255, 36, 34, 34)),
+        labelText: label,
+        labelStyle: TextStyle(color: const Color.fromARGB(255, 34, 32, 32)),
+        filled: true,
+        fillColor: Colors.grey[100],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    ),
+  );
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Register for $eventName",style: TextStyle(fontWeight: FontWeight.bold))
-       ,centerTitle: true,      backgroundColor: Colors.grey,),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      if (teamSize > 1)
-                        TextFormField(
-                          controller: teamNameController,
-                          decoration: InputDecoration(labelText: "Team Name"),
-                          validator: (value) => value!.isEmpty ? "Enter team name" : null,
+  Widget buildTextField(String label, TextEditingController controller, {bool isEmail = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TextFormField(
+        controller: controller,
+        validator: (value) => value == null || value.isEmpty ? "Enter $label" : null,
+        keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: Colors.grey[100],
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.grey[200],
+ appBar: AppBar(
+   backgroundColor: const Color.fromARGB(255, 100, 97, 97),
+  toolbarHeight: 80, // Increase AppBar height
+  title: Center(
+    child: Text(
+      "Register for $eventName",
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 22,
+        color: Colors.white,
+      ),
+      maxLines: 2,
+      textAlign: TextAlign.center,
+      overflow: TextOverflow.ellipsis,
+    ),
+  ),
+  centerTitle: true, // Ensures iOS/Android consistent center
+),
+
+    body: isLoading
+        ? Center(child: CircularProgressIndicator())
+        : Padding(
+            padding: EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (teamSize > 1)
+                      buildStyledTextField(
+                        "Team Name",
+                        teamNameController,
+                        icon: Icons.group,
+                      ),
+                    ...List.generate(teamSize, (i) {
+                      return Card(
+                        elevation: 3,
+                        margin: EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      for (int i = 0; i < teamSize; i++)
-                        Column(
-                          children: [
-                            TextFormField(controller: nameControllers[i], decoration: InputDecoration(labelText: "Member ${i + 1} Name")),
-                            TextFormField(controller: emailControllers[i], decoration: InputDecoration(labelText: "Email")),
-                          ],
+                        color: const Color.fromARGB(255, 200, 215, 223), 
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Member ${i + 1}",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              buildStyledTextField(
+                                "Name",
+                                nameControllers[i],
+                                icon: Icons.person,
+                              ),
+                              buildStyledTextField(
+                                "Email",
+                                emailControllers[i],
+                                isEmail: true,
+                                icon: Icons.email,
+                              ),
+                            ],
+                          ),
                         ),
-                      TextFormField(controller: collegeController, decoration: InputDecoration(labelText: "College")),
-                      SizedBox(height: 20),
-                      ElevatedButton(onPressed: registerTeam, child: Text("Register", style: TextStyle(fontSize: 18))),
-                    ],
-                  ),
+                      );
+                    }),
+                    buildStyledTextField(
+                      "College",
+                      collegeController,
+                      icon: Icons.school,
+                    ),
+                    SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: registerTeam,
+                      icon: Icon(Icons.send, color: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      label: Text(
+                        "Register",
+                        style: TextStyle(color: Colors.white, fontSize: 18),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-    );
-  }
+          ),
+  );
 }
 
+}

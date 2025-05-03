@@ -199,6 +199,7 @@ class _PaperlessODPageState extends State<PaperlessODPage> {
     return Card(
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: const Color.fromARGB(255, 230, 230, 230), // Updated card color
       child: Padding(
         padding: EdgeInsets.all(16),
         child: child,
